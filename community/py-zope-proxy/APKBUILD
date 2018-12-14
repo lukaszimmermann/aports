@@ -1,18 +1,19 @@
 # Contributor: Carlo Landmeter <clandmeter@alpinelinux.org>
 # Maintainer: Carlo Landmeter <clandmeter@alpinelinux.org>
-pkgname=py-zope-event
-pkgver=4.4
+pkgname=py-zope-proxy
+_pkgname=zope.proxy
+pkgver=4.3.1
 pkgrel=0
-pkgdesc="Event publishing / dispatch, used by Zope Component Architecture"
-url="https://github.com/zopefoundation/zope.event"
-arch="noarch"
+pkgdesc="Generic transparent proxies via a C extension module"
+url="https://github.com/zopefoundation/$_pkgname"
+arch="all"
 license="ZPL"
-depends="py-setuptools"
+depends="py-setuptools py-zope-interface"
 makedepends="python2-dev python3-dev py-setuptools"
 subpackages="py2-${pkgname#py-}:_py2 py3-${pkgname#py-}:_py3"
-source="zope.event-$pkgver.tar.gz::https://github.com/zopefoundation/zope.event/archive/$pkgver.tar.gz"
+source="$_pkgname-$pkgver.tar.gz::https://github.com/zopefoundation/$_pkgname/archive/$pkgver.tar.gz"
 
-builddir="$srcdir"/zope.event-$pkgver
+builddir="$srcdir"/$_pkgname-$pkgver
 
 build() {
     cd "$builddir"
@@ -52,4 +53,4 @@ _py() {
 }
 
 
-sha512sums="653273d021a43dca6d77900a3e2928f1621fd9c47a536ddd186e00b601670a4ac72042a1eadf18cf9912609025b491cee41508e8eb53bf2dc2ada2c5d3d5bb70  zope.event-4.4.tar.gz"
+sha512sums="1072258c35bf23162c4f347060ea79979cbfc551c308e809b7e63f1d9434f566b665954edf3d2ab0b72161fb74b0e707c5904775876188306411ed0401424612  zope.proxy-4.3.1.tar.gz"

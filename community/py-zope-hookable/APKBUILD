@@ -1,18 +1,19 @@
 # Contributor: Carlo Landmeter <clandmeter@alpinelinux.org>
 # Maintainer: Carlo Landmeter <clandmeter@alpinelinux.org>
-pkgname=py-zope-event
-pkgver=4.4
+pkgname=py-zope-hookable
+_pkgname=zope.hookable
+pkgver=4.2.0
 pkgrel=0
-pkgdesc="Event publishing / dispatch, used by Zope Component Architecture"
-url="https://github.com/zopefoundation/zope.event"
-arch="noarch"
+pkgdesc="Represents the core of the Zope hookable Architecture"
+url="https://github.com/zopefoundation/$_pkgname"
+arch="all"
 license="ZPL"
 depends="py-setuptools"
 makedepends="python2-dev python3-dev py-setuptools"
 subpackages="py2-${pkgname#py-}:_py2 py3-${pkgname#py-}:_py3"
-source="zope.event-$pkgver.tar.gz::https://github.com/zopefoundation/zope.event/archive/$pkgver.tar.gz"
+source="$_pkgname-$pkgver.tar.gz::https://github.com/zopefoundation/$_pkgname/archive/$pkgver.tar.gz"
 
-builddir="$srcdir"/zope.event-$pkgver
+builddir="$srcdir"/$_pkgname-$pkgver
 
 build() {
     cd "$builddir"
@@ -52,4 +53,4 @@ _py() {
 }
 
 
-sha512sums="653273d021a43dca6d77900a3e2928f1621fd9c47a536ddd186e00b601670a4ac72042a1eadf18cf9912609025b491cee41508e8eb53bf2dc2ada2c5d3d5bb70  zope.event-4.4.tar.gz"
+sha512sums="aeeafff7e5c7cbe3d5944864278896f926086514e75be1d5956e32fc0a3769ac11b008c3855a0816084c7deb64f14c65db49852dac2beaf06420a304af6ebb69  zope.hookable-4.2.0.tar.gz"
