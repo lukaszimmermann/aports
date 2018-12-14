@@ -97,7 +97,7 @@ done
 
 echo 'Creating index...'
 # Create the package index
-apk index --no-cache -U --arch $ARCH --rewrite-arch $ARCH -o "$DEST/APKINDEX.tar.gz" *.apk
+apk index --no-cache -U --arch $ARCH --rewrite-arch $ARCH -o "$DEST/APKINDEX.tar.gz" "$DEST"/*.apk
 cd "$BASEDIR"
 sync
 
