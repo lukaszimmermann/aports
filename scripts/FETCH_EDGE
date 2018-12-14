@@ -10,6 +10,7 @@ busybox-initscripts
 busybox-suid
 chrony
 cryptsetup-libs
+cryptsetup-dev
 device-mapper-libs
 dropbear
 json-c
@@ -153,3 +154,4 @@ openssh-server
 ncurses-terminfo-base
 openssh-server-common
 ncurses-terminfo
+pkgconfig
