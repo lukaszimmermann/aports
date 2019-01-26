@@ -79,7 +79,7 @@ profile_rpi() {
 
 profile_rpi3bplus() {
 	grub_mod="disk part_gpt part_msdos linux multiboot2 normal configfile search search_label efi_uga efi_gop fat iso9660 cat echo ls test true help gzio"
-	apks="alpine-base alpine-mirrors busybox kbd-bkeymaps chrony dropbear tzdata"
+	apks="alpine-base alpine-mirrors busybox kbd-bkeymaps chrony dropbear tzdata libblkid kmod cryptsetup-libs"
 	apkovl=
 	title="Raspberry Pi 3B+"
 	desc="Designed for 3B+ exclusively"
