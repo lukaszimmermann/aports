@@ -1,6 +1,8 @@
 #!/bin/sh
 set -e
 
+BASEDIR="$(pwd)"
+
 die() {
 	echo "$1"
 	exit 1
@@ -25,24 +27,26 @@ usage() {
 Creates a repository to be used for the 'mkimage.sh' script available in the aports repository based
 on the package configuration found in 'packages'
 
-$0	[--outdir OUTDIR] [--arch ARCH] [--use-also APK_FILE].. [--fetch-edge FETCH_EDGE_FILE]..
+$0	[--outdir OUTDIR] [--arch ARCH] [--use-also APK_FILE].. [--fetch-edge FETCH_EDGE_FILE].. [--arch ARCH]
 $0	--help
 
 options:
+--arch                  The architecture of the repository to be initialized.
 --fetch-edge            File containing a list of packages that should be fetched for Alpine's offical edge channel.
 --outdir		Where the repository should be created at
 --use-also              Adds the given apk file to the generated repository. Can be specified multiple times.
 EOF
 }
 
-
 # Parse Parameters
+ARCH="$(apk --print-arch)"
 USE_ALSO=""
 FETCH_EDGE_FILES=""
 while [ $# -gt 0 ] ; do
 	opt=$1
 	shift
 	case "$opt" in
+		--arch) ARCH="$1"; shift ;;
 		--outdir) OUTDIR="$1"; shift ;;
 		--use-also) USE_ALSO="$1 $USE_ALSO"; shift ;;
 		--fetch-edge) FETCH_EDGE_FILES="$1 $FETCH_EDGE_FILES"; shift ;;
@@ -61,7 +65,6 @@ for also in $USE_ALSO; do
 done
 
 # Printing configuration
-ARCH="$(apk --print-arch)"
 echo "Architecture is: $ARCH"
 for also in $USE_ALSO; do
 	echo "Use also APK: ${also}"
@@ -80,24 +83,22 @@ fi
 
 
 # Perform installation of packages
-DEST="${OUTDIR}/$ARCH"
-mkdir -p ${DEST}
-
-# Get the packages via FETCH_EDGE
+DEST="$OUTDIR/$ARCH"
+mkdir -p "$DEST"
 cd "$DEST"
-apk fetch -q --arch $ARCH --no-cache -U --repository "http://dl-cdn.alpinelinux.org/alpine/edge/main" $FETCH_EDGE_PACKAGES
-sync
+# Get the packages via FETCH_EDGE
+apk fetch --allow-untrusted --root "${DEST}" --arch $ARCH --no-cache -U --repository "http://dl-cdn.alpinelinux.org/alpine/edge/main" $FETCH_EDGE_PACKAGES
+cd "$BASEDIR"
 
 # Get the packages for --use-also
 for also in $USE_ALSO; do
-	cp $also $DEST
+	cp "$also" "$DEST"
 done
-sync
 
 echo 'Creating index...'
-
 # Create the package index
-apk index --no-cache -U --arch $ARCH --rewrite-arch $ARCH -o APKINDEX.tar.gz *.apk
+apk index --no-cache -U --arch $ARCH --rewrite-arch $ARCH -o "$DEST/APKINDEX.tar.gz" *.apk
+cd "$BASEDIR"
 sync
 
 
