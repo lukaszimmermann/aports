@@ -1,0 +1,185 @@
+# Maintainer: Natanael Copa <ncopa@alpinelinux.org>
+
+pkgname=linux-rpi
+pkgver=4.20.4
+case $pkgver in
+*.*.*)	_kernver=${pkgver%.*};;
+*.*)	_kernver=${pkgver};;
+esac
+pkgrel=0
+pkgdesc="Linux kernel with Raspberry Pi patches"
+url=https://github.com/raspberrypi/linux
+depends="mkinitfs"
+makedepends="sed installkernel bc linux-headers linux-firmware bison flex openssl-dev"
+options="!strip !check"
+_rpi_repo="git://github.com/raspberrypi/linux.git"
+_linux_repo="git://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git"
+source="https://kernel.org/pub/linux/kernel/v4.x/linux-$_kernver.tar.xz
+	https://kernel.org/pub/linux/kernel/v4.x/patch-$pkgver.xz
+	rpi-$pkgver.patch
+	issue-4973.patch
+	config-changes-rpi.aarch64"
+arch="aarch64"
+license="GPL-2.0"
+_flavors="rpi"
+_carch="arm64"
+HOSTCC="${CC:-gcc}"
+HOSTCC="${HOSTCC#${CROSS_COMPILE}}"
+
+prepare() {
+	local _patch_failed=
+	cd "$srcdir"/linux-$_kernver
+	if [ "${pkgver%.0}" = "$pkgver" ]; then
+		msg "Applying patch-$pkgver.xz"
+		unxz -c < "$srcdir"/patch-$pkgver.xz | patch -p1 -N
+	fi
+
+	# first apply patches in specified order
+	for i in $source; do
+		case $i in
+		*.patch)
+			msg "Applying $i..."
+			if ! patch -s -p1 -N -i "$srcdir"/${i##*/}; then
+				echo $i >>failed
+				_patch_failed=1
+			fi
+			;;
+		esac
+	done
+
+	if ! [ -z "$_patch_failed" ]; then
+		error "The following patches failed:"
+		cat failed
+		return 1
+	fi
+
+	# remove localversion from patch if any
+	rm -f localversion*
+
+	local flavor=
+	for flavor in $_flavors; do
+		local builddir="$srcdir"/build-$flavor
+		mkdir -p "$builddir"
+		echo "-$pkgrel-$flavor" > "$builddir"/localversion-alpine
+		_genconfig $flavor
+		make -C "$srcdir"/linux-$_kernver \
+			O="$builddir" \
+			ARCH="$_carch" \
+			HOSTCC="$HOSTCC" \
+			olddefconfig
+		_verifyconfig $flavor
+	done
+}
+
+# generate config from defconfig and apply local changes.
+# config-changes-$flavor.$CARCH holds a list of = delimited
+# config command and values used by kernel scripts/config script.
+_genconfig() {
+	local flavor=$1 defconfig=
+	local builddir="$srcdir"/build-$flavor
+	local defconfig=bcmrpi3_defconfig
+
+	cp "$srcdir"/linux-$_kernver/arch/$_carch/configs/$defconfig \
+		"$builddir"/.config
+
+	while read line; do
+		[ ${line:0:1} = "#" ] && continue
+		local option=${line%%=*} str=
+		local cmd=$(echo $line | cut -d= -f2)
+		case "$cmd" in
+			enable|disable|module) str= ;;
+			set-str|set-val) str=${line##*=} ;;
+			*) die "Command $cmd not accepted" ;;
+		esac
+		msg "[$flavor] $cmd: $option $str"
+		"$srcdir"/linux-$_kernver/scripts/config \
+			--file "$builddir"/.config \
+			--${cmd} "$option" "${str//\"/}"
+	done < "$srcdir"/config-changes-$flavor.${CARCH}
+}
+
+# verify if options are set to correct value
+_verifyconfig() {
+	local flavor=$1
+	local builddir="$srcdir"/build-$flavor
+	while read line; do
+		[ ${line:0:1} = "#" ] && continue
+		local option=${line%%=*} str= invert=
+		local cmd=$(echo $line | cut -d= -f2)
+		case "$cmd" in
+			enable) str="$option=y" ;;
+			disable) str="$option"; invert="-v" ;;
+			module) str="$option=m" ;;
+			set-val) str="$option=${line##*=}" ;;
+			set-str) str=${line##*=}
+				str="$option=\"${str//\"/}\"" ;;
+		esac
+		grep -q $invert "^$str" "$builddir"/.config || \
+			die "Config: $option not properly set!"
+	done < "$srcdir"/config-changes-$flavor.${CARCH}
+}
+
+build() {
+	unset LDFLAGS
+	for i in $_flavors; do
+		cd "$srcdir"/build-$i
+		make ARCH="$_carch" CC="${CC:-gcc}" \
+			KBUILD_BUILD_VERSION="$((pkgrel + 1 ))-Alpine"
+	done
+}
+
+_package() {
+	local _buildflavor="$1" _outdir="$2"
+	local _abi_release=${pkgver}-${pkgrel}-${_buildflavor}
+
+	cd "$srcdir"/build-$_buildflavor
+
+	mkdir -p "$_outdir"/boot "$_outdir"/lib/modules
+
+	local _install="install dtbs_install"
+
+	cd "$srcdir"/build-$_buildflavor
+	local INSTALL_DTBS_PATH="$_outdir"/usr/lib/linux-${_abi_release}
+	make -j1 modules_install $_install \
+		ARCH="$_carch" \
+		INSTALL_MOD_PATH="$_outdir" \
+		INSTALL_PATH="$_outdir"/boot \
+		INSTALL_DTBS_PATH="$INSTALL_DTBS_PATH"
+
+	rm -f "$_outdir"/lib/modules/${_abi_release}/build \
+		"$_outdir"/lib/modules/${_abi_release}/source
+	rm -rf "$_outdir"/lib/firmware
+
+	install -D include/config/kernel.release \
+		"$_outdir"/usr/share/kernel/$_buildflavor/kernel.release
+
+	# Specific to aarch64
+        mv -f "$INSTALL_DTBS_PATH"/broadcom/*.dtb "$INSTALL_DTBS_PATH"
+        rmdir "$INSTALL_DTBS_PATH"/broadcom
+}
+
+genpatch() {
+	local RPI_REPO_PATH="$HOME/repositories/linux-rpi"
+	msg "Checking out/pulling the Linux kernel git repository.."
+	mkdir -p "$RPI_REPO_PATH" && cd "$RPI_REPO_PATH"
+	git clone "$_linux_repo" "$RPI_REPO_PATH" 2>/dev/null || git pull
+	msg "Fetching raspberry git repository.."
+	git remote add rpi "$_rpi_repo" 2>/dev/null || true
+	git fetch rpi
+	msg "Generating rpi patch: rpi-$pkgver.patch"
+	mkdir -p "$srcdir"
+	git diff v$pkgver remotes/rpi/rpi-${pkgver%.*}.y > \
+		"$srcdir"/rpi-$pkgver.patch
+}
+
+# main flavor installs in $pkgdir
+package() {
+	depends="$depends linux-firmware-brcm"
+	_package rpi "$pkgdir"
+}
+
+sha512sums="e282399beea5da539701aed2bc131abd5bc74a970dcd344163e9d295106dfd700180e672ed546ae5e55bc6b9ac95efd5ca1de2039015c1b7a6fc9c01ea6583d4  linux-4.20.tar.xz
+56d18c5946c73d062665e92cfe28cc8d1a18a00804d1ddf1e0a8e8d5be1b84342b09ead1ed968aca4898fe689dcbdb8dfd4862a5f179c69bda79f8c1a0fc645f  patch-4.20.4.xz
+5c4fec867d23de29b9d3efc330d5c3a38be942eff6fabf13ba9b011e74b0529343598660901e69866de06f028850050fe18e045deede2030b2232202ffbee66a  rpi-4.20.4.patch
+501c91bf2538a18102da59bbccc3097f9c3c90079acc0e946ff075074160c09b8a66934e5ce5470e170f0e4f93d114709a95230367426d0bb7ea02c4bdf4cc9b  issue-4973.patch
+3b2ba4a9c230e0f62263acbe11735cb94ea1ec8eefab621fba49ba520300cababbbb5b7f2039c57576eaead24abe2c488b42b801b59b79dd9423a3313e0b7bef  config-changes-rpi.aarch64"

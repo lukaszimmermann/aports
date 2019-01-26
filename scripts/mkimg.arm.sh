@@ -77,6 +77,20 @@ profile_rpi() {
 	hostname="rpi"
 }
 
+profile_rpi3bplus() {
+	grub_mod="disk part_gpt part_msdos linux multiboot2 normal configfile search search_label efi_uga efi_gop fat iso9660 cat echo ls test true help gzio"
+	apks="alpine-base alpine-mirrors busybox kbd-bkeymaps chrony dropbear tzdata"
+	apkovl=
+	title="Raspberry Pi 3B+"
+	desc="Designed for 3B+ exclusively"
+	image_ext="tar.gz"
+	arch="aarch64"
+	kernel_flavors="rpi"
+	kernel_cmdline="dwc_otg.lpm_enable=0 console=tty1"
+	initfs_features="base bootchart squashfs ext4 f2fs kms mmc raid scsi usb"
+	hostname="rpi"
+}
+
 build_uboot() {
 	set -x
 	# FIXME: Fix apk-tools to extract packages directly
