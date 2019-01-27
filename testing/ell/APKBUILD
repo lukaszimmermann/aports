@@ -1,0 +1,25 @@
+# Maintainer: Lukas Zimmermann <luk.zim91@@gmail.com>
+pkgname=ell
+pkgver=0.17
+pkgrel=0
+pkgdesc="Embedded Linux Library"
+url="https://01.org/ell"
+arch="aarch64"
+license="LGPL2.1"
+depends=""
+makedepends="gcc linux-headers make musl-dev"
+source="https://mirrors.edge.kernel.org/pub/linux/libs/$pkgname/$pkgname-$pkgver.tar.xz"
+builddir="$srcdir/$pkgname-$pkgver"
+
+build() {
+	cd "$builddir"
+	./configure --prefix=/usr
+	make
+}
+
+package() {
+	cd "$builddir"
+	make DESTDIR="$pkgdir" install
+}
+
+sha512sums="5ca82bf3dbfacb7770fe1132ec3d93d7ebd139f1781157f1def8d810b21c84b212c555c981f7b80152e49e0da0a82b46fbd6322aadc25c56f26c21065a8886ef  ell-0.17.tar.xz"
